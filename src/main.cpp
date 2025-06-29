@@ -5,7 +5,6 @@
 int main() {
 
     SharedString str = "abc abc";
-    SharedString preallocated = SharedString(std::integral_constant<std::size_t, 15>());
 
     std::cout << str.c_str() << std::endl;
     str.make_mutable();

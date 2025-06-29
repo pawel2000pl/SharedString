@@ -8,7 +8,6 @@
 #include <type_traits>
 #include <initializer_list>
 
-
 template<typename T>
 struct is_like_string {
 private:
@@ -32,24 +31,54 @@ std::size_t strlen(const CharType* chr) {
 
 
 template<typename CharType>
-struct SharedStringData {
+struct SharedStringData final {
 
-    SharedStringData() = default;
-    SharedStringData(const char* adata, const std::size_t acount) : data{(char*)adata}, count{acount} {}
-    SharedStringData(const SharedStringData&) = delete;
-    SharedStringData(SharedStringData&&) = delete;
+    constexpr static const std::size_t npos = (std::size_t)(-1);
 
-    virtual ~SharedStringData() {}
+    SharedStringData() = delete;
+    ~SharedStringData() = delete;
+
+
+    static SharedStringData* create(std::size_t length) {
+        std::size_t alloc_size = sizeof(SharedStringData) + length * sizeof(CharType);
+        SharedStringData* object = (SharedStringData*) (new std::int8_t[alloc_size]);
+        object->count = length;
+        object->references_count = 0;
+        object->owner = NULL;
+        object->data = (CharType*)(object+1);
+        return object;
+    }
+
+
+    static SharedStringData* create(const CharType* data, std::size_t length=npos) {
+        SharedStringData* object = create((std::size_t)0);
+        object->data = const_cast<CharType*>(data);
+        object->owner = object; // modifications not allowed
+        return object;
+    }
+
+
+    static SharedStringData* create(const CharType* begin, const CharType* end) {
+        return create(begin, end-begin);
+    }
+
+
+    static void dispose(SharedStringData* object) {
+        delete [] ((std::int8_t*)object);
+    }
+
 
     SharedStringData* add_reference() {
         references_count++;
         return this;
     }
 
-    std::size_t remove_reference(void* object) {
-        if (owner == object) owner = NULL;
-        return --references_count;
+
+    static void remove_reference(SharedStringData* object, void* owner) {
+        if (object->owner == owner) owner = NULL;
+        if (!(--(object->references_count))) dispose(object);
     }
+
 
     bool set_owner(void* new_owner) {
         if (owner) return owner == new_owner;
@@ -58,53 +87,13 @@ struct SharedStringData {
         return true;
     }
 
-    char* const data = NULL;
-    const std::size_t count = 0;
-    std::size_t references_count = 0;
-    void* owner = 0;
+
+    std::size_t count;
+    std::size_t references_count;
+    void* owner;
+    CharType* data;
 
 };
-
-
-template<typename CharType, std::size_t allocated_count>
-struct SharedStringDataConstBuf : public SharedStringData<CharType> {
-
-    SharedStringDataConstBuf() : SharedStringData<CharType>(data_buf, allocated_count) {}
-
-    char data_buf[allocated_count];
-
-};
-
-
-template<typename CharType>
-struct SharedStringDataConstPtr : public SharedStringData<CharType> {
-
-    SharedStringDataConstPtr(const char* ptr) : SharedStringData<CharType>(ptr, strlen(ptr)) {
-        this->owner = this; // modifications not allowed
-    }
-
-    SharedStringDataConstPtr(const char* ptr, std::size_t count) : SharedStringData<CharType>(ptr, count) {
-        this->owner = this; // modifications not allowed
-    }
-
-    SharedStringDataConstPtr(const char* begin, char* end) : SharedStringData<CharType>(begin, end - begin) {
-        this->owner = this; // modifications not allowed
-    }
-
-};
-
-
-template<typename CharType>
-struct SharedStringDataDynamicPtr : public SharedStringData<CharType> {
-
-    SharedStringDataDynamicPtr(std::size_t count) : SharedStringData<CharType>(new CharType[count], count) {}
-
-    ~SharedStringDataDynamicPtr() override {
-        delete [] this->data;
-    }
-
-};
-
 
 
 template<typename CharType = char>
@@ -113,12 +102,11 @@ class SharedString {
     public:
 
         using DataStruct = SharedStringData<CharType>;
-        constexpr static const std::size_t npos = std::size_t(-1);
+        constexpr static const std::size_t npos = DataStruct::npos;
 
 
-        template<std::size_t allocate=32>
-        SharedString(std::integral_constant<std::size_t, allocate>) {
-            data_struct = (new SharedStringDataConstBuf<CharType, allocate>())->add_reference();
+        explicit SharedString(std::size_t size) {
+            data_struct = DataStruct::create(size)->add_reference();
             count = 0;
             data_ptr = data_struct->data;
         }
@@ -126,7 +114,7 @@ class SharedString {
 
         SharedString(const std::initializer_list<CharType>& init_list) {
             std::size_t size = init_list.size();
-            data_struct = (new SharedStringDataDynamicPtr<CharType>(size))->add_reference();
+            data_struct = DataStruct::create(size)->add_reference();
             count = size;
             data_ptr = data_struct->data;
             std::size_t i = 0;
@@ -138,7 +126,7 @@ class SharedString {
         template<typename InputIt, typename std::iterator_traits<InputIt>::difference_type* = nullptr>
         SharedString(InputIt& first, InputIt& last) {
             std::size_t size = std::distance(first, last);
-            data_struct = (new SharedStringDataConstPtr<CharType>(size))->add_reference();
+            data_struct = DataStruct::create(size)->add_reference();
             count = size;
             data_ptr = data_struct->data;
             auto it = first;
@@ -149,15 +137,9 @@ class SharedString {
         }
 
 
-        SharedString(const char* ptr) {
-            data_struct = (new SharedStringDataConstPtr<CharType>(ptr))->add_reference();
-            count = data_struct->count;
-            data_ptr = data_struct->data;
-        }
-
-
-        SharedString(const char* ptr, std::size_t count) {
-            data_struct = (new SharedStringDataConstPtr<CharType>(ptr, count))->add_reference();
+        SharedString(const CharType* ptr, std::size_t count = npos) {
+            if (count) count = strlen(ptr);
+            data_struct = DataStruct::create(ptr, count)->add_reference();
             this->count = count;
             data_ptr = data_struct->data;
         }
@@ -168,15 +150,8 @@ class SharedString {
 
 
         SharedString(const char* begin, const char* end) {
-            data_struct = (new SharedStringDataConstPtr<CharType>(begin, end))->add_reference();
+            data_struct = DataStruct::create(begin, end)->add_reference();
             count = end - begin;
-            data_ptr = data_struct->data;
-        }
-
-
-        SharedString(const std::size_t allocate) {
-            data_struct = (new SharedStringDataDynamicPtr<CharType>(allocate))->add_reference();
-            count = 0;
             data_ptr = data_struct->data;
         }
 
@@ -186,6 +161,9 @@ class SharedString {
             this->count = count;
             this->data_ptr = data_struct->data + offset;
         }
+
+
+        SharedString() : SharedString(32) {}
 
 
         SharedString(const SharedString& other) {
@@ -207,7 +185,7 @@ class SharedString {
 
 
         ~SharedString() {
-            if (data_struct && !data_struct->remove_reference(this)) delete data_struct;
+            if (data_struct) DataStruct::remove_reference(data_struct, this);
         }
 
 
@@ -217,34 +195,32 @@ class SharedString {
 
 
         void make_mutable() {
-            if (is_mutable()) return;
             if (data_struct->set_owner(this)) return;
-            reserve(count, true);
+            reserve(count);
         }
 
 
-        void reserve(std::size_t allocate_count=0, bool make_me_owner=false) {
-            if (allocate_count <= (data_struct->set_owner(this) ? data_struct->count : count)) return;
-            DataStruct* new_data_struct = new SharedStringDataDynamicPtr<CharType>(std::max<std::size_t>(count, allocate_count));
-            if (make_me_owner) new_data_struct->owner = this;
+        void reserve(std::size_t allocate_count=0) {
+            if (allocate_count <= data_struct->count && data_struct->set_owner(this)) return;
+            DataStruct* new_data_struct = DataStruct::create(std::max<std::size_t>(count, allocate_count));
+            new_data_struct->owner = this;
             for (std::size_t i=0;i<count;i++)
                 new_data_struct->data[i] = data_ptr[i];
             data_ptr = new_data_struct->data;
-            if (!data_struct->remove_reference(this)) delete data_struct;
+            DataStruct::remove_reference(data_struct, this);
             data_struct = new_data_struct->add_reference();
         }
 
 
-        SharedString* detach() {
-            reserve();
-            return this;
+        std::size_t capacity() const {
+            return data_struct->count;
         }
 
 
         void push_back(const CharType* str, std::size_t add_count=1) {
             std::size_t new_count = count + add_count;
             if (!data_struct->set_owner(this) || new_count > data_struct->count)
-                reserve(new_count * 2, true);
+                reserve(new_count * 2);
             for (std::size_t i=count,j=0;j<add_count;i++,j++)
                 data_ptr[i] = str[j];
             count = new_count;
@@ -318,7 +294,6 @@ class SharedString {
             }
             return count == length ? 0 : count < length ? -1 : 1;
         }
-
 
 
         template<class T>
