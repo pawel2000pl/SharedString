@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <initializer_list>
 
+
 template<typename T>
 struct is_like_string {
 private:
@@ -114,26 +115,27 @@ class SharedString {
 
         SharedString(const std::initializer_list<CharType>& init_list) {
             std::size_t size = init_list.size();
-            data_struct = DataStruct::create(size)->add_reference();
+            data_struct = DataStruct::create(size+1)->add_reference();
             count = size;
             data_ptr = data_struct->data;
             std::size_t i = 0;
             for (const auto chr : init_list)
                 data_ptr[i++] = chr;
+            data_ptr[i++] = 0;
         }
 
 
         template<typename InputIt, typename std::iterator_traits<InputIt>::difference_type* = nullptr>
-        SharedString(InputIt& first, InputIt& last) {
+        SharedString(const InputIt& first, const InputIt& last) {
             std::size_t size = std::distance(first, last);
-            data_struct = DataStruct::create(size)->add_reference();
+            data_struct = DataStruct::create(size+1)->add_reference();
             count = size;
             data_ptr = data_struct->data;
-            auto it = first;
             std::size_t i = 0;
-            for (std::size_t i=0;i<size;i++,it=std::next(it)) {
+            auto it = first;
+            for (i=0;i<size;i++,it=std::next(it))
                 data_ptr[i] = *it;
-            }
+            data_ptr[i++] = 0;
         }
 
 
@@ -149,7 +151,7 @@ class SharedString {
         SharedString(const T& other) : SharedString(other.data(), other.size()) {}
 
 
-        SharedString(const char* begin, const char* end) {
+        SharedString(const CharType* begin, const CharType* end) {
             data_struct = DataStruct::create(begin, end)->add_reference();
             count = end - begin;
             data_ptr = data_struct->data;
