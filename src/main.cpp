@@ -21,6 +21,8 @@ int main() {
     std::cout << substr.c_str() << std::endl;
     std::cout << str.references_count() << " " << str2.references_count() << std::endl;
 
+    char c = str[1];
+    str[1] = 'a';
 
     return 0;
 }

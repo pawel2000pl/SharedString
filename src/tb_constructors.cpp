@@ -3,7 +3,6 @@
 #include <list>
 #include "SharedString.h"
 
-
 TEST(Constructors, Allocate) {
 
     SharedString str1(125);

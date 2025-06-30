@@ -8,7 +8,6 @@
 #include <type_traits>
 #include <initializer_list>
 
-
 template<typename T>
 struct is_like_string {
 private:
@@ -104,6 +103,29 @@ class SharedString {
 
         using DataStruct = SharedStringData<CharType>;
         constexpr static const std::size_t npos = DataStruct::npos;
+
+
+        class ElementProxy {
+            public:
+                ElementProxy(SharedString* p, std::size_t i) : parent(p), index(i) {}
+                ElementProxy(const ElementProxy&) = default;
+                ElementProxy(ElementProxy&&) = default;
+
+                ElementProxy& operator=(CharType value) {
+                    parent->make_mutable();
+                    parent->data_ptr[index] = value;
+                    return *this;
+                }
+
+                operator CharType() const {
+                    return parent->data_ptr[index];
+                }
+
+            private:
+                SharedString* parent;
+                std::size_t index;
+
+        };
 
 
         explicit SharedString(std::size_t size) {
@@ -203,14 +225,29 @@ class SharedString {
 
 
         void reserve(std::size_t allocate_count=0) {
-            if (allocate_count <= data_struct->count && data_struct->set_owner(this)) return;
-            DataStruct* new_data_struct = DataStruct::create(std::max<std::size_t>(count, allocate_count));
+            if (allocate_count <= data_struct->count && data_struct->set_owner(this)) 
+                return;
+            detach(allocate_count);
+        }
+
+
+        void detach(std::size_t allocate_count=0) {
+            DataStruct* new_data_struct = DataStruct::create(std::max<std::size_t>(count+1, allocate_count));
             new_data_struct->owner = this;
             for (std::size_t i=0;i<count;i++)
                 new_data_struct->data[i] = data_ptr[i];
+            new_data_struct->data[count] = 0;
             data_ptr = new_data_struct->data;
             DataStruct::remove_reference(data_struct, this);
             data_struct = new_data_struct->add_reference();
+        }
+
+
+        void resize(std::size_t new_size, CharType filler = 0) {
+            reserve(new_size);
+            for (std::size_t i=count;i<new_size;i++)
+                data_ptr[i] = filler;
+            count = new_size;
         }
 
 
@@ -250,6 +287,28 @@ class SharedString {
         }
 
 
+        const CharType* begin() const {
+            return data_ptr;
+        }
+
+
+        const CharType* end() const {
+            return data_ptr+count;
+        }
+
+
+        CharType* begin() {
+            make_mutable();
+            return data_ptr;
+        }
+
+
+        CharType* end() {
+            make_mutable();
+            return data_ptr+count;
+        }
+
+
         SharedString substr(std::size_t position, std::size_t char_count=npos) const {
             std::size_t begin = std::min(position, count-1);
             std::size_t end = std::min(position + char_count, count);
@@ -262,8 +321,13 @@ class SharedString {
         }
 
 
-        CharType& operator[](std::size_t position) const {
+        const CharType& operator[](std::size_t position) const {
             return data_ptr[position];
+        }
+
+
+        ElementProxy operator[](std::size_t position) {
+            return ElementProxy(this, position);
         }
 
 
@@ -275,7 +339,7 @@ class SharedString {
         const CharType* c_str() {
             CharType* zero_ptr = data_ptr + count;
             if (data_struct->data + data_struct->count <= zero_ptr || *zero_ptr) {
-                push_back((char)0);
+                push_back((CharType)0);
                 count--;
             }
             return data();
@@ -418,7 +482,6 @@ class SharedString {
         }
 
 
-
         std::list<SharedString<CharType>> split(const char* separator, std::size_t separator_length=npos, std::size_t limit=(std::size_t)(-1)) const {
             std::list<SharedString<CharType>> result;
             if (separator_length == npos) separator_length = strlen(separator);
@@ -442,6 +505,28 @@ class SharedString {
             return result;
         }
 
+
+        SharedString& operator=(const SharedString& other) {
+            if (&other != this) {
+                if (data_struct) DataStruct::remove_reference(data_struct);
+                data_ptr = other.data_ptr;
+                count = other.count;
+                data_struct = other->add_reference();
+            }
+            return *this;
+        }
+                
+        
+        SharedString& operator=(SharedString&& other) {
+            if (&other != this) {
+                if (data_struct) DataStruct::remove_reference(data_struct);
+                data_ptr = other.data_ptr;
+                count = other.count;
+                data_struct = other->data_struct;
+                other->data_struct = NULL;
+            }
+            return *this;
+        }
 
 
     private:
