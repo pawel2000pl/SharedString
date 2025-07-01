@@ -18,14 +18,14 @@ enable_testing()
 
 
 add_executable(
-  tb_constructors
-  src/tb_constructors.cpp
+  test_constructors
+  src/test_constructors.cpp
 )
 target_link_libraries(
-  tb_constructors
+  test_constructors
   GTest::gtest_main
 )
 
 
 include(GoogleTest)
-gtest_discover_tests(tb_constructors)
+gtest_discover_tests(test_constructors)
