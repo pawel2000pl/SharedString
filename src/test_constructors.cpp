@@ -69,3 +69,60 @@ TEST(Constructors, IteratorWithList) {
     EXPECT_EQ(str1.references_count(), 1);
 
 }
+
+
+TEST(Constructors, CopyConstructorFromConstA) {
+
+    const char* test_str = "test string";
+
+    // const-buf source with detected zero at the end
+    SharedString<char>* source = new SharedString<char>(test_str);
+    EXPECT_EQ(source->references_count(), 1);
+
+    SharedString<char>* copy1 = new SharedString<char>(*source);
+    EXPECT_EQ(source->references_count(), 2);
+    EXPECT_EQ(copy1->references_count(), 2);
+
+    delete source;
+    EXPECT_EQ(copy1->references_count(), 1);
+
+}
+
+
+TEST(Constructors, CopyConstructorFromConstB) {
+
+    const char* test_str = "test string";
+
+    // const-buf source with detected zero at the end
+    SharedString<char>* source = new SharedString<char>(test_str);
+    EXPECT_EQ(source->references_count(), 1);
+
+    SharedString<char>* copy1 = new SharedString<char>(*source);
+    EXPECT_EQ(source->references_count(), 2);
+    EXPECT_EQ(copy1->references_count(), 2);
+
+    delete copy1;
+    EXPECT_EQ(source->references_count(), 1);
+
+}
+
+
+
+
+TEST(Constructors, MoveConstructorFromConst) {
+
+    const char* test_str = "test string";
+
+    // const-buf source with detected zero at the end
+    SharedString<char>* source = new SharedString<char>(test_str);
+    EXPECT_EQ(source->references_count(), 1);
+    EXPECT_EQ(source->is_moved(), false);
+
+    SharedString<char>* copy1 = new SharedString<char>(std::move(*source));
+    EXPECT_EQ(source->is_moved(), true);
+    EXPECT_EQ(copy1->references_count(), 1);
+
+    delete source;
+    EXPECT_EQ(copy1->references_count(), 1);
+
+}

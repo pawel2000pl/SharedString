@@ -53,6 +53,7 @@ struct SharedStringData final {
     static SharedStringData* create(const CharType* data, std::size_t length=npos) {
         SharedStringData* object = create((std::size_t)0);
         object->data = const_cast<CharType*>(data);
+        object->count = length == npos ? strlen(data)+1 : length;
         object->owner = object; // modifications not allowed
         return object;
     }
@@ -209,7 +210,7 @@ class SharedString {
             this->data_struct= other.data_struct;
             this->count = other.count;
             this->data_ptr = other.data_ptr;
-            if (this->data_ptr->owner == &other) this->data_ptr->owner = this;
+            if (this->data_struct->owner == &other) this->data_struct->owner = this;
             other.data_struct = NULL;
             other.count = 0;
             other.data_ptr = NULL;
@@ -356,6 +357,11 @@ class SharedString {
 
         std::size_t references_count() const {
             return data_struct->references_count;
+        }
+
+
+        bool is_moved() const {
+            return data_struct == NULL;
         }
 
 
