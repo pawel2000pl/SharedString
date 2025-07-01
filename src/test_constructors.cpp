@@ -85,6 +85,7 @@ TEST(Constructors, CopyConstructorFromConstA) {
 
     delete source;
     EXPECT_EQ(copy1->references_count(), 1);
+    delete copy1;
 
 }
 
@@ -103,10 +104,9 @@ TEST(Constructors, CopyConstructorFromConstB) {
 
     delete copy1;
     EXPECT_EQ(source->references_count(), 1);
+    delete source;
 
 }
-
-
 
 
 TEST(Constructors, MoveConstructorFromConst) {
@@ -124,5 +124,6 @@ TEST(Constructors, MoveConstructorFromConst) {
 
     delete source;
     EXPECT_EQ(copy1->references_count(), 1);
+    delete copy1;
 
 }
