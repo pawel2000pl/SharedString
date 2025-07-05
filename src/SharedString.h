@@ -435,8 +435,8 @@ class SharedString {
 
         std::size_t find(const char* needle, std::size_t start_position=0, std::size_t length=npos) const {
             if (length == npos) length = strlen(needle);
-            if (length < count) return npos;
-            std::size_t end_position = count - length;
+            if (length > count) return npos;
+            std::size_t end_position = count - length + 1;
             for (std::size_t i=start_position;i<end_position;i++)
                 if (is_placed_in(i, needle, length)) return i;
             return npos;

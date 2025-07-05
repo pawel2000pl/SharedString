@@ -47,7 +47,19 @@ target_link_libraries(
 )
 
 
+
+add_executable(
+  test_find
+  src/test_find.cpp
+)
+target_link_libraries(
+  test_find
+  GTest::gtest_main
+)
+
+
 include(GoogleTest)
 gtest_discover_tests(test_constructors)
 gtest_discover_tests(test_static)
 gtest_discover_tests(test_compare)
+gtest_discover_tests(test_find)
