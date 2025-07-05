@@ -27,5 +27,27 @@ target_link_libraries(
 )
 
 
+add_executable(
+  test_static
+  src/test_static.cpp
+)
+target_link_libraries(
+  test_static
+  GTest::gtest_main
+)
+
+
+add_executable(
+  test_compare
+  src/test_compare.cpp
+)
+target_link_libraries(
+  test_compare
+  GTest::gtest_main
+)
+
+
 include(GoogleTest)
 gtest_discover_tests(test_constructors)
+gtest_discover_tests(test_static)
+gtest_discover_tests(test_compare)

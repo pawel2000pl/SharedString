@@ -8,11 +8,15 @@
 #include <type_traits>
 #include <initializer_list>
 
-template<typename T>
+template<typename T, typename CharType=char>
 struct is_like_string {
 private:
     template<typename U>
-    static auto test(int) -> decltype(std::declval<U>().at(), std::declval<U>().size(), std::declval<U>().data(), std::true_type());
+    static auto test(int) -> std::integral_constant<bool, 
+        std::is_same<typename std::remove_cv<typename std::remove_reference<decltype(std::declval<const U>().at(0))>::type>::type, CharType>::value && 
+        std::is_integral<decltype(std::declval<const U>().size())>::value &&
+        std::is_same<typename std::remove_cv<typename std::remove_pointer<decltype(std::declval<const U>().data())>::type>::type, CharType>::value
+    >;
 
     template<typename>
     static std::false_type test(...);
@@ -167,14 +171,14 @@ class SharedString {
 
 
         SharedString(const CharType* ptr, std::size_t count = npos) {
-            if (count) count = strlen(ptr);
+            if (count == npos) count = strlen(ptr);
             data_struct = DataStruct::create(ptr, count)->add_reference();
             this->count = count;
             data_ptr = data_struct->data;
         }
 
 
-        template<typename T, typename std::enable_if<is_like_string<T>::value, void>::type* = nullptr>
+        template<typename T, typename std::enable_if<is_like_string<T, CharType>::value, void>::type* = nullptr>
         SharedString(const T& other) : SharedString(other.data(), other.size()) {}
 
 
@@ -326,7 +330,7 @@ class SharedString {
 
 
         CharType at(std::size_t position) const {
-            return data_struct->data[position + position];
+            return data_struct->data[position];
         }
 
 
@@ -372,18 +376,18 @@ class SharedString {
                 int diff = (int)data_ptr[i] - (int)data[i];
                 if (diff) return (diff > 0) ? 1 : -1;
             }
-            return count == length ? 0 : count < length ? -1 : 1;
+            return count == length ? 0 : count < length ? 1 : -1;
         }
 
 
         template<class T>
-        typename std::enable_if<is_like_string<T>::value, int>::type compare(const T& other) const {
+        typename std::enable_if<is_like_string<T, CharType>::value, int>::type compare(const T& other) const {
             return compare(other.data(), other.size());
         }
 
 
         template<class T>
-        static typename std::enable_if<is_like_string<T>::value && !std::is_same<T, SharedStringData<CharType>>::value, SharedString>::type
+        static typename std::enable_if<is_like_string<T, CharType>::value && !std::is_same<T, SharedStringData<CharType>>::value, SharedString>::type
         concat(const SharedStringData<CharType>& a, const T& b) {
             SharedString result(a);
             result.push_back(b.data(), b.size());
@@ -392,7 +396,7 @@ class SharedString {
 
 
         template<class T>
-        static typename std::enable_if<is_like_string<T>::value && !std::is_same<T, SharedStringData<CharType>>::value, SharedString>::type
+        static typename std::enable_if<is_like_string<T, CharType>::value && !std::is_same<T, SharedStringData<CharType>>::value, SharedString>::type
         concat(const T& a, const SharedStringData<CharType>& b) {
             std::size_t a_size = a.size();
             std::size_t b_size = b.size();
@@ -424,7 +428,7 @@ class SharedString {
 
 
         template<class T>
-        typename std::enable_if<is_like_string<T>::value, bool>::type is_placed_in(std::size_t position, const T& needle) const {
+        typename std::enable_if<is_like_string<T, CharType>::value, bool>::type is_placed_in(std::size_t position, const T& needle) const {
             return is_placed_in(position, needle.data(), needle.size());
         }
 
@@ -440,7 +444,7 @@ class SharedString {
 
 
         template<class T>
-        typename std::enable_if<is_like_string<T>::value, std::size_t>::type find(const T& needle, std::size_t start_position=0) const {
+        typename std::enable_if<is_like_string<T, CharType>::value, std::size_t>::type find(const T& needle, std::size_t start_position=0) const {
             return find(needle.data(), start_position, needle.size());
         }
 
@@ -458,7 +462,7 @@ class SharedString {
 
 
         template<class T>
-        typename std::enable_if<is_like_string<T>::value, std::size_t>::type rfind(const T& needle, std::size_t start_position=0) const {
+        typename std::enable_if<is_like_string<T, CharType>::value, std::size_t>::type rfind(const T& needle, std::size_t start_position=0) const {
             return rfind(needle.data(), start_position, needle.size());
         }
 
@@ -469,7 +473,7 @@ class SharedString {
 
 
         template<class T>
-        typename std::enable_if<is_like_string<T>::value, bool>::type contains(const T& needle) const {
+        typename std::enable_if<is_like_string<T, CharType>::value, bool>::type contains(const T& needle) const {
             return contains(needle.data(), needle.size());
         }
 
@@ -480,7 +484,7 @@ class SharedString {
 
 
         template<class T>
-        typename std::enable_if<is_like_string<T>::value, bool>::type starts_with(const T& needle) const {
+        typename std::enable_if<is_like_string<T, CharType>::value, bool>::type starts_with(const T& needle) const {
             return starts_with(needle.data(), needle.size());
         }
 
@@ -491,7 +495,7 @@ class SharedString {
 
 
         template<class T>
-        typename std::enable_if<is_like_string<T>::value, bool>::type ends_with(const T& needle) const {
+        typename std::enable_if<is_like_string<T, CharType>::value, bool>::type ends_with(const T& needle) const {
             return ends_with(needle.data(), needle.size());
         }
 
