@@ -55,10 +55,10 @@ TEST(RFind, Basic) {
 
     EXPECT_EQ(str1.rfind("abc"), 10);
     EXPECT_EQ(str1.rfind("abc", 12), 10);
-    EXPECT_EQ(str1.rfind("abc", 11), 5);
-    EXPECT_EQ(str1.rfind("abc", 5), 0);
+    EXPECT_EQ(str1.rfind("abc", 11), 10);
+    EXPECT_EQ(str1.rfind("abc", 5), 5);
     EXPECT_EQ(str1.rfind("abc", 3), 0);
-    EXPECT_EQ(str1.rfind("abc", 2), SharedString<char>::npos);
+    EXPECT_EQ(str1.rfind("abc", 2), 0);
 
 }
 
@@ -69,5 +69,30 @@ TEST(RFind, Overload) {
 
     EXPECT_EQ(str1.rfind("abc", 200), 10);
     EXPECT_EQ(str1.rfind("nope", 0), SharedString<char>::npos);
+
+}
+
+
+TEST(RFind, EmptyNeedle) {
+    
+    SharedString str1("abc##abc##abc");
+
+    EXPECT_EQ(str1.rfind(""), str1.size());
+    EXPECT_EQ(str1.rfind("", 0), 0);
+    EXPECT_EQ(str1.rfind("", 1), 1);
+    EXPECT_EQ(str1.rfind("", 200), str1.size());
+
+}
+
+
+TEST(RFind, EmptyHaystack) {
+    
+    SharedString str1("");
+
+    EXPECT_EQ(str1.rfind("abc", 0), SharedString<char>::npos);
+    EXPECT_EQ(str1.rfind("", 1), 0);
+    EXPECT_EQ(str1.rfind("", 0), 0);
+    EXPECT_EQ(str1.rfind("", 200), 0);
+    EXPECT_EQ(str1.rfind("abc", 200), SharedString<char>::npos);
 
 }
