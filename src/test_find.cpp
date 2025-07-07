@@ -48,3 +48,26 @@ TEST(Find, EmptyHaystack) {
 
 }
 
+
+TEST(RFind, Basic) {
+
+    SharedString str1("abc##abc##abc");
+
+    EXPECT_EQ(str1.rfind("abc"), 10);
+    EXPECT_EQ(str1.rfind("abc", 12), 10);
+    EXPECT_EQ(str1.rfind("abc", 11), 5);
+    EXPECT_EQ(str1.rfind("abc", 5), 0);
+    EXPECT_EQ(str1.rfind("abc", 3), 0);
+    EXPECT_EQ(str1.rfind("abc", 2), SharedString<char>::npos);
+
+}
+
+
+TEST(RFind, Overload) {
+
+    SharedString str1("abc##abc##abc");
+
+    EXPECT_EQ(str1.rfind("abc", 200), 10);
+    EXPECT_EQ(str1.rfind("nope", 0), SharedString<char>::npos);
+
+}

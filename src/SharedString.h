@@ -451,11 +451,11 @@ class SharedString {
 
         std::size_t rfind(const char* needle, std::size_t start_position=npos, std::size_t length=npos) const {
             if (length == npos) length = strlen(needle);
-            if (start_position > count) start_position = count;
+            if (start_position >= count) start_position = count-1;
             if (start_position < length) return npos;
             start_position -= length;
             std::size_t end_position = count - length;
-            for (std::size_t i=start_position;i!=(std::size_t)(-1);i--)
+            for (std::size_t i=start_position+1;i!=(std::size_t)(-1);i--)
                 if (is_placed_in(i, needle, length)) return i;
             return npos;
         }
