@@ -4,6 +4,7 @@ project(shared_string_tests)
 # GoogleTest requires at least C++17
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_compile_options(-Wall -Wextra -O2)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -67,10 +68,20 @@ target_link_libraries(
 )
 
 
-add_compile_options(-Wall -Wextra -O2)
+add_executable(
+  test_split
+  src/test_split.cpp
+)
+target_link_libraries(
+  test_split
+  GTest::gtest_main
+)
+
+
 include(GoogleTest)
 gtest_discover_tests(test_constructors)
 gtest_discover_tests(test_static)
 gtest_discover_tests(test_compare)
 gtest_discover_tests(test_find)
 gtest_discover_tests(test_substr)
+gtest_discover_tests(test_split)

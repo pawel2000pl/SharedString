@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <initializer_list>
 
+
 template<typename T, typename CharType = char>
 struct is_like_string {
 private:
@@ -133,48 +134,51 @@ class SharedString {
         };
 
 
+        SharedString() : SharedString(32) {}
+
+
         explicit SharedString(std::size_t size) {
-            data_struct = DataStruct::create(size)->add_reference();
-            count = 0;
-            data_ptr = data_struct->data;
+            this->data_struct = DataStruct::create(size)->add_reference();
+            this->count = 0;
+            this->data_ptr = data_struct->data;
         }
 
 
         SharedString(const std::initializer_list<CharType>& init_list)
-         : SharedString(std::begin(init_list), std::end(init_list)) {}
+         : SharedString(std::begin(init_list), std::end(init_list), true) {}
 
 
         template<typename InputIt, typename std::iterator_traits<InputIt>::difference_type* = nullptr>
-        SharedString(const InputIt& first, const InputIt& last) {
+        SharedString(const InputIt& first, const InputIt& last, bool=false) {
             std::size_t size = std::distance(first, last);
-            data_struct = DataStruct::create(size+1)->add_reference();
-            count = size;
-            data_ptr = data_struct->data;
+            this->data_struct = DataStruct::create(size+1)->add_reference();
+            this->count = size;
+            this->data_ptr = data_struct->data;
             std::size_t i = 0;
             auto it = first;
             for (i=0;i<size;i++,it=std::next(it))
-                data_ptr[i] = *it;
-            data_ptr[i++] = 0;
+                this->data_ptr[i] = *it;
+            this->data_ptr[i++] = 0;
         }
 
 
         SharedString(CharType* ptr, std::size_t count = npos) {
             if (count == npos) count = strlen(ptr);
-            data_struct = DataStruct::create(count+1)->add_reference();
+            this->data_struct = DataStruct::create(count+1)->add_reference();
             this->count = count;
-            data_ptr = data_struct->data;
+            this->data_ptr = data_struct->data;
             std::size_t i = 0;
             for (i=0;i<count;i++)
-                data_ptr[i] = ptr[i];
-            data_ptr[i++] = 0;
+                this->data_ptr[i] = ptr[i];
+            this->data_ptr[i++] = 0;
         }
 
 
         SharedString(const CharType* ptr, std::size_t count = npos) {
             if (count == npos) count = strlen(ptr);
-            data_struct = DataStruct::create(ptr, count)->add_reference();
+            this->data_struct = DataStruct::create(ptr, count)->add_reference();
             this->count = count;
-            data_ptr = data_struct->data;
+            this->data_ptr = data_struct->data;
         }
 
 
@@ -187,9 +191,9 @@ class SharedString {
 
 
         SharedString(const CharType* begin, const CharType* end) {
-            data_struct = DataStruct::create(begin, end)->add_reference();
-            count = end - begin;
-            data_ptr = data_struct->data;
+            this->data_struct = DataStruct::create(begin, end)->add_reference();
+            this->count = end - begin;
+            this->data_ptr = this->data_struct->data;
         }
 
 
@@ -201,9 +205,6 @@ class SharedString {
 
         SharedString(DataStruct* data_struct, CharType* data_ptr, CharType* data_end)
          : SharedString(data_struct, data_ptr, data_end - data_ptr) {}
-
-
-        SharedString() : SharedString(32) {}
 
 
         SharedString(const SharedString& other) {
@@ -329,7 +330,7 @@ class SharedString {
         SharedString substr(std::size_t position, std::size_t char_count=npos) const {
             position = std::min(position, count);
             char_count = std::min(char_count, count - position);
-            return char_count ? SharedString(data_struct, data_ptr + position, char_count) : SharedString();
+            return SharedString(data_struct, data_ptr + position, char_count);
         }
 
 
@@ -509,22 +510,21 @@ class SharedString {
             if (separator_length == npos) separator_length = strlen(separator);
             if (separator_length) {
                 std::size_t result_count = 0;
-                CharType* start_position = data_ptr;
-                const CharType* data_end = data_ptr + count - separator_length;
-                for (CharType* data_it = data_ptr; data_it < data_end; ) {
-                    std::size_t i;
-                    for (i=0;i<separator_length;i++)
-                        if (separator[i] != data_it[i]) break;
-                    if (i==separator_length) {
-                        result.emplace_back(data_struct, start_position, data_it+1);
-                        data_it += separator_length;
-                        start_position = data_it;
-                        if (result_count++ >= limit) break;
-                    } else data_it++;
+                std::size_t pos = 0;
+                while (pos <= count) {
+                    std::size_t next_pos = (result_count++ >= limit) ? count : find(separator, pos, separator_length);
+                    if (next_pos > count) next_pos = count;
+                    result.emplace_back(data_struct, data_ptr + pos, next_pos - pos);
+                    pos = next_pos + separator_length;
                 }
-                result.emplace_back(data_struct, start_position, data_ptr + count);
             }
             return result;
+        }
+
+
+        template<typename T, typename std::enable_if<is_like_string<T, CharType>::value, void>::value* = nullptr>
+        std::list<SharedString<CharType>> split(const T& separator, std::size_t limit=npos) const {
+            return split(separator.data(), separator.size(), limit);
         }
 
 

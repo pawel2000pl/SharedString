@@ -34,7 +34,7 @@ TEST(Constructors, ConstChar) {
 
 TEST(Constructors, InitializerList) {
 
-    SharedString str1({'a', 'b', 'c'});
+    SharedString str1(std::initializer_list({'a', 'b', 'c'}));
 
     EXPECT_EQ(str1.compare("abc"), 0);
     EXPECT_EQ(strcmp(str1.c_str(), "abc"), 0);
