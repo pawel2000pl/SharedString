@@ -193,11 +193,14 @@ class SharedString {
         }
 
 
-        SharedString(DataStruct* data_struct, std::size_t offset, std::size_t count) {
+        SharedString(DataStruct* data_struct, CharType* data_ptr, std::size_t count) {
             this->data_struct = data_struct->add_reference();
             this->count = count;
-            this->data_ptr = data_struct->data + offset;
+            this->data_ptr = data_ptr;
         }
+
+        SharedString(DataStruct* data_struct, CharType* data_ptr, CharType* data_end)
+         : SharedString(data_struct, data_ptr, data_end - data_ptr) {}
 
 
         SharedString() : SharedString(32) {}
@@ -269,7 +272,8 @@ class SharedString {
         }
 
 
-        void push_back(const CharType* str, std::size_t add_count=1) {
+        void push_back(const CharType* str, std::size_t add_count=npos) {
+            if (add_count == npos) add_count = strlen(str);
             std::size_t new_count = count + add_count;
             if (!data_struct->set_owner(this) || new_count > data_struct->count)
                 reserve(new_count * 2);
@@ -323,9 +327,9 @@ class SharedString {
 
 
         SharedString substr(std::size_t position, std::size_t char_count=npos) const {
-            std::size_t begin = std::min(position, count-1);
-            std::size_t end = std::min(position + char_count, count);
-            return SharedString(data_struct, data_ptr - data_struct->data + begin, end - begin);
+            position = std::min(position, count);
+            char_count = std::min(char_count, count - position);
+            return char_count ? SharedString(data_struct, data_ptr + position, char_count) : SharedString();
         }
 
 
@@ -500,7 +504,7 @@ class SharedString {
         }
 
 
-        std::list<SharedString<CharType>> split(const CharType* separator, std::size_t separator_length=npos, std::size_t limit=(std::size_t)(-1)) const {
+        std::list<SharedString<CharType>> split(const CharType* separator, std::size_t separator_length=npos, std::size_t limit=npos) const {
             std::list<SharedString<CharType>> result;
             if (separator_length == npos) separator_length = strlen(separator);
             if (separator_length) {
@@ -512,13 +516,13 @@ class SharedString {
                     for (i=0;i<separator_length;i++)
                         if (separator[i] != data_it[i]) break;
                     if (i==separator_length) {
-                        result.emplace_back(start_position, data_it+1);
+                        result.emplace_back(data_struct, start_position, data_it+1);
                         data_it += separator_length;
                         start_position = data_it;
                         if (result_count++ >= limit) break;
                     } else data_it++;
                 }
-                result.emplace_back(start_position, data_ptr + count);
+                result.emplace_back(data_struct, start_position, data_ptr + count);
             }
             return result;
         }
