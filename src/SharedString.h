@@ -8,7 +8,7 @@
 #include <type_traits>
 #include <initializer_list>
 
-template<typename T, typename CharType=char>
+template<typename T, typename CharType = char>
 struct is_like_string {
 private:
     template<typename U>
@@ -417,10 +417,10 @@ class SharedString {
         }
 
 
-        bool is_placed_in(std::size_t position, const char* needle, std::size_t length=npos) const {
+        bool is_placed_in(std::size_t position, const CharType* needle, std::size_t length=npos) const {
             if (length == npos) length = strlen(needle);
             if (position + length > count) return 0;
-            char* data_pos = data_ptr + position;
+            CharType* data_pos = data_ptr + position;
             for (std::size_t i=0;i<length;i++)
                 if (data_pos[i] != needle[i]) return false;
             return true;
@@ -433,7 +433,7 @@ class SharedString {
         }
 
 
-        std::size_t find(const char* needle, std::size_t start_position=0, std::size_t length=npos) const {
+        std::size_t find(const CharType* needle, std::size_t start_position=0, std::size_t length=npos) const {
             if (length == npos) length = strlen(needle);
             if (length > count) return npos;
             std::size_t end_position = count - length + 1;
@@ -449,7 +449,7 @@ class SharedString {
         }
 
 
-        std::size_t rfind(const char* needle, std::size_t start_position=npos, std::size_t length=npos) const {        
+        std::size_t rfind(const CharType* needle, std::size_t start_position=npos, std::size_t length=npos) const {        
             if (length == npos) length = strlen(needle);
             start_position = (start_position == npos || start_position > count - length) ? count - length : start_position;
             if (length == 0) return start_position;
@@ -467,8 +467,8 @@ class SharedString {
         }
 
 
-        bool contains(const char* needle, std::size_t length=npos) const {
-            return find(needle, 0, (length==npos)?strlen(needle):length) != npos;
+        bool contains(const CharType* needle, std::size_t length=npos) const {
+            return find(needle, 0, length) != npos;
         }
 
 
@@ -478,8 +478,8 @@ class SharedString {
         }
 
 
-        bool starts_with(const char* needle, std::size_t length=npos) const {
-            return is_placed_in(0, needle, (length==npos)?strlen(needle):length);
+        bool starts_with(const CharType* needle, std::size_t length=npos) const {
+            return is_placed_in(0, needle, length);
         }
 
 
@@ -489,8 +489,8 @@ class SharedString {
         }
 
 
-        bool ends_with(const char* needle, std::size_t length=npos) const {
-            return is_placed_in(count - length, needle, (length==npos)?strlen(needle):length);
+        bool ends_with(const CharType* needle, std::size_t length=npos) const {
+            return is_placed_in(count - length, needle, length);
         }
 
 
@@ -500,14 +500,14 @@ class SharedString {
         }
 
 
-        std::list<SharedString<CharType>> split(const char* separator, std::size_t separator_length=npos, std::size_t limit=(std::size_t)(-1)) const {
+        std::list<SharedString<CharType>> split(const CharType* separator, std::size_t separator_length=npos, std::size_t limit=(std::size_t)(-1)) const {
             std::list<SharedString<CharType>> result;
             if (separator_length == npos) separator_length = strlen(separator);
             if (separator_length) {
                 std::size_t result_count = 0;
-                char* start_position = data_ptr;
-                const char* data_end = data_ptr + count - separator_length;
-                for (char* data_it = data_ptr; data_it < data_end; ) {
+                CharType* start_position = data_ptr;
+                const CharType* data_end = data_ptr + count - separator_length;
+                for (CharType* data_it = data_ptr; data_it < data_end; ) {
                     std::size_t i;
                     for (i=0;i<separator_length;i++)
                         if (separator[i] != data_it[i]) break;
