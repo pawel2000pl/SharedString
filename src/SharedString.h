@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <iterator>
+#include <compare>
 #include <list>
 #include <type_traits>
 #include <initializer_list>
@@ -16,7 +17,9 @@ private:
     static auto test(int) -> std::integral_constant<bool, 
         std::is_same<typename std::remove_cv<typename std::remove_reference<decltype(std::declval<const U>().at(0))>::type>::type, CharType>::value && 
         std::is_integral<decltype(std::declval<const U>().size())>::value &&
-        std::is_same<typename std::remove_cv<typename std::remove_pointer<decltype(std::declval<const U>().data())>::type>::type, CharType>::value
+        std::is_same<typename std::remove_cv<typename std::remove_pointer<decltype(std::declval<const U>().data())>::type>::type, CharType>::value &&
+        std::is_same<decltype(U(std::declval<const CharType*>(), std::declval<std::size_t>())), U>::value &&
+        std::is_signed<decltype(std::declval<U>().compare(std::declval<std::size_t>(), std::declval<std::size_t>(), std::declval<const CharType*>()))>::value
     >;
 
     template<typename>
@@ -285,7 +288,11 @@ class SharedString {
 
 
         void push_back(const CharType chr) {
-            push_back(&chr, 1);
+            std::size_t new_count = count + 1;
+            if (!data_struct->set_owner(this) || new_count > data_struct->count)
+                reserve(new_count * 2);
+            data_ptr[count] = chr;
+            count = new_count;
         }
 
 
@@ -374,10 +381,9 @@ class SharedString {
         }
 
 
-        int compare(const CharType* data, std::size_t length=npos) const {
-            if (length == npos) length = strlen(data);
+        int compare(std::size_t pos, std::size_t length, const CharType* data) const {
             std::size_t loop_end = std::min(count, length);
-            for (std::size_t i=0;i<loop_end;i++) {
+            for (std::size_t i=pos;i<loop_end;i++) {
                 int diff = (int)data_ptr[i] - (int)data[i];
                 if (diff) return (diff > 0) ? 1 : -1;
             }
@@ -385,9 +391,15 @@ class SharedString {
         }
 
 
+        int compare(const CharType* data, std::size_t length=npos) const {
+            if (length == npos) length = strlen(data);
+            return compare(0, length, data);
+        }
+
+
         template<class T>
         typename std::enable_if<is_like_string<T, CharType>::value, int>::type compare(const T& other) const {
-            return compare(other.data(), other.size());
+            return compare(0, other.size(), other.data());
         }
 
 
@@ -551,6 +563,50 @@ class SharedString {
         }
 
 
+        template<class T, typename std::enable_if<is_like_string<T>::value, void>::type* = nullptr>
+        auto operator <=> (const T& t) const {
+            return this->compare(t.data(), t.size()) <=> 0;
+        }
+
+
+        auto operator <=> (const CharType* u) const {
+            return this->compare(u) <=> 0;
+        }
+
+        
+        template<class T, typename std::enable_if<is_like_string<T>::value, void>::type* = nullptr>
+        bool operator == (const T& t) const {
+            return this->compare(t.data(), t.size()) == 0;
+        }
+
+
+        bool operator == (const CharType* u) const {
+            return this->compare(u) == 0;
+        }
+
+
+        template<class T, typename std::enable_if<is_like_string<T>::value, void>::type* = nullptr>
+        SharedString operator+(const T& x) const {
+            SharedString result(*this);
+            result.push_back(x.data(), x.size());
+            return result;
+        }
+
+                
+        SharedString operator+(const CharType* x) const {
+            SharedString result(*this);
+            result.push_back(x);
+            return result;
+        }
+                
+
+        SharedString operator+(const CharType x) const {
+            SharedString result(*this);
+            result.push_back(x);
+            return result;
+        }
+
+
     private:
 
         CharType* data_ptr;
@@ -558,3 +614,4 @@ class SharedString {
         DataStruct* data_struct;
 
 };
+

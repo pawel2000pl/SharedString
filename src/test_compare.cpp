@@ -82,3 +82,38 @@ TEST(Compare, empty_str) {
     EXPECT_EQ(str2.compare("aaaaaAAAAAAAAaaAAaaAAaaaaaaaaaaAAAAAAAAAAAAAAaaaaaaaaaAAAAaaaaAAAaAAAaAAAaaAAa"), 1);
 
 }
+
+
+TEST(Compare, OperatorsEq) {
+
+    SharedString str1("abcdef");
+    SharedString str2("abcdef");
+    std::string str3("abcdef");
+    std::string_view str4("abcdef");
+
+    EXPECT_TRUE(str1 == str2);
+    EXPECT_TRUE(str1 == str3);
+    EXPECT_TRUE(str1 == str4);
+    EXPECT_TRUE(str1 == "abcdef");
+
+}
+
+
+TEST(Compare, OperatorsNeq) {
+
+    SharedString str1("abcdef");
+    SharedString str2("bcdef");
+    std::string str3("bcdef");
+    std::string_view str4("bcdef");
+
+    EXPECT_TRUE(str1 < str2);
+    EXPECT_TRUE(str1 < str3);
+    EXPECT_TRUE(str1 < str4);
+    EXPECT_TRUE(str1 < "bcdef");
+
+    EXPECT_TRUE(str2 > str1);
+    EXPECT_TRUE(str3 > str1);
+    EXPECT_TRUE(str4 > str1);
+    EXPECT_TRUE("bcdef" > str1);
+
+}
