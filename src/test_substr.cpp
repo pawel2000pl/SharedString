@@ -69,7 +69,7 @@ TEST(Substr, ReferencesPtrReserved) {
     EXPECT_EQ(str2->references_count(), 2);
     EXPECT_EQ(str1->references_count(), 2);
 
-    str1->push_back("1234567890"); // requires reservation of new buffer
+    str1->append("1234567890"); // requires reservation of new buffer
     
     EXPECT_EQ(str1->references_count(), 1);
     EXPECT_EQ(str1->compare("0123456789" "1234567890"), 0);
@@ -91,7 +91,7 @@ TEST(Substr, ReferencesPtrSubPushed) {
     TestString* str1 = new TestString((char*)"0123456789"); // forces copy
     TestString* str2 = new TestString(str1->substr(2, 3));
 
-    str2->push_back("1234567890"); // requires reservation of new buffer
+    str2->append("1234567890"); // requires reservation of new buffer
     
     EXPECT_EQ(str1->references_count(), 1);
     EXPECT_EQ(str1->compare("0123456789"), 0);

@@ -276,7 +276,7 @@ class SharedString {
         }
 
 
-        void push_back(const CharType* str, std::size_t add_count=npos) {
+        void append(const CharType* str, std::size_t add_count=npos) {
             if (add_count == npos) add_count = strlen(str);
             std::size_t new_count = count + add_count;
             if (!data_struct->set_owner(this) || new_count > data_struct->count)
@@ -284,6 +284,13 @@ class SharedString {
             for (std::size_t i=count,j=0;j<add_count;i++,j++)
                 data_ptr[i] = str[j];
             count = new_count;
+        }
+
+
+        template<class T>
+        typename std::enable_if<is_like_string<T>::value, void>::type
+        append(const T& str) {
+            append(str.data(), str.size());
         }
 
 
@@ -407,7 +414,7 @@ class SharedString {
         static typename std::enable_if<is_like_string<T, CharType>::value && !std::is_same<T, SharedStringData<CharType>>::value, SharedString>::type
         concat(const SharedStringData<CharType>& a, const T& b) {
             SharedString result(a);
-            result.push_back(b.data(), b.size());
+            result.append(b.data(), b.size());
             return result;
         }
 
@@ -588,14 +595,14 @@ class SharedString {
         template<class T, typename std::enable_if<is_like_string<T>::value, void>::type* = nullptr>
         SharedString operator+(const T& x) const {
             SharedString result(*this);
-            result.push_back(x.data(), x.size());
+            result.append(x.data(), x.size());
             return result;
         }
 
                 
         SharedString operator+(const CharType* x) const {
             SharedString result(*this);
-            result.push_back(x);
+            result.append(x);
             return result;
         }
                 
