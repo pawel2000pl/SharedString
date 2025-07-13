@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <string>
 #include "SharedString.h"
 
 using TestString = SharedString<char>;
@@ -53,5 +54,23 @@ TEST(Split, Limit) {
     EXPECT_EQ((it++)->compare(""), 0);
     EXPECT_EQ((it++)->compare("456$#789$#"), 0);
 
+}
+
+
+TEST(Split, AppendPart) {
+
+    std::string base("0123$#456$#789");
+    TestString str1(base.begin(), base.end(), true);
+
+    std::list<TestString> splitted = str1.split("$#");
+    auto it = std::begin(splitted);
+    it++;
+
+    EXPECT_EQ(str1.compare("0123$#456$#789"), 0);
+    EXPECT_EQ(str1.references_count(), 4);
+    it->append("qwe");
+    EXPECT_EQ(str1.compare("0123$#456$#789"), 0);
+    EXPECT_EQ(str1.references_count(), 3);
+    
 }
 

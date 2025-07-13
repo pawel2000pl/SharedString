@@ -539,6 +539,7 @@ class SharedString {
             std::list<SharedString<CharType>> result;
             if (separator_length == npos) separator_length = strlen(separator);
             if (separator_length) {
+                lock_data();
                 std::size_t result_count = 0;
                 std::size_t pos = 0;
                 while (pos <= count) {
@@ -563,7 +564,7 @@ class SharedString {
                 if (data_struct) DataStruct::remove_reference(data_struct);
                 data_ptr = other.data_ptr;
                 count = other.count;
-                data_struct = other->add_reference();
+                data_struct = other.data_struct->add_reference();
             }
             return *this;
         }
@@ -574,7 +575,8 @@ class SharedString {
                 if (data_struct) DataStruct::remove_reference(data_struct);
                 data_ptr = other.data_ptr;
                 count = other.count;
-                data_struct = other->data_struct;
+                data_struct = other.data_struct;
+                if (data_struct->owner == &other) data_struct->owner = this;
                 other->data_struct = NULL;
             }
             return *this;
