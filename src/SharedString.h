@@ -89,7 +89,7 @@ struct SharedStringData final {
     }
 
 
-    bool set_owner(void* new_owner) {
+    bool set_owner(const void* new_owner) {
         if (owner) return owner == new_owner;
         if (!new_owner) return false;
         owner = new_owner;
@@ -99,7 +99,7 @@ struct SharedStringData final {
 
     std::size_t count;
     std::size_t references_count;
-    void* owner;
+    const void* owner;
     CharType* data;
 
 };
@@ -238,9 +238,19 @@ class SharedString {
         }
 
 
+        bool can_be_mutable() const {
+            return data_struct->owner == this || data_struct->owner == NULL;
+        }
+
+
+        void lock_data() const {
+            data_struct->set_owner(this);
+        }
+
+
         void make_mutable() {
             if (data_struct->set_owner(this)) return;
-            reserve(count);
+            detach(count);
         }
 
 
@@ -342,6 +352,7 @@ class SharedString {
 
 
         SharedString substr(std::size_t position, std::size_t char_count=npos) const {
+            lock_data();
             position = std::min(position, count);
             char_count = std::min(char_count, count - position);
             return SharedString(data_struct, data_ptr + position, char_count);

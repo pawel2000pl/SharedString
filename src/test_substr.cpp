@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <string>
 #include "SharedString.h"
 
 using TestString = SharedString<char>;
@@ -86,9 +87,13 @@ TEST(Substr, ReferencesPtrReserved) {
 }
 
 
-TEST(Substr, ReferencesPtrSubPushed) {
+TEST(Substr, ReferencesPtrSubAppened) {
 
-    TestString* str1 = new TestString((char*)"0123456789"); // forces copy
+    std::string base("0123456789");
+
+    TestString* str1 = new TestString(base.begin(), base.end(), true); // forces copy
+    EXPECT_TRUE(str1->can_be_mutable());
+
     TestString* str2 = new TestString(str1->substr(2, 3));
 
     str2->append("1234567890"); // requires reservation of new buffer
@@ -105,4 +110,29 @@ TEST(Substr, ReferencesPtrSubPushed) {
 
     delete str1;
 
+}
+
+
+TEST(Substr, ReferencesPtrSubPushed) {
+
+    std::string base("0123456789");
+
+    TestString* str1 = new TestString(base.begin(), base.end(), true); // forces copy
+    EXPECT_TRUE(str1->can_be_mutable());
+
+    TestString* str2 = new TestString(str1->substr(2, 3));
+
+    str2->append("1"); // does not require reservation of new buffer - but otherwise it would modify str1
+    
+    EXPECT_EQ(str1->references_count(), 1);
+    EXPECT_EQ(str1->compare("0123456789"), 0);
+    EXPECT_EQ(str2->compare("2341"), 0);
+    EXPECT_EQ(str2->references_count(), 1);
+
+    delete str2;
+
+    EXPECT_EQ(str1->compare("0123456789"), 0);
+    EXPECT_EQ(str1->references_count(), 1);
+
+    delete str1;
 }
