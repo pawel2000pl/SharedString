@@ -92,7 +92,7 @@ TEST(Substr, ReferencesPtrSubAppened) {
     std::string base("0123456789");
 
     TestString* str1 = new TestString(base.begin(), base.end(), true); // forces copy
-    EXPECT_TRUE(str1->can_be_mutable());
+    EXPECT_TRUE(str1->is_mutable());
 
     TestString* str2 = new TestString(str1->substr(2, 3));
 
@@ -118,7 +118,7 @@ TEST(Substr, ReferencesPtrSubPushed) {
     std::string base("0123456789");
 
     TestString* str1 = new TestString(base.begin(), base.end(), true); // forces copy
-    EXPECT_TRUE(str1->can_be_mutable());
+    EXPECT_TRUE(str1->is_mutable());
 
     TestString* str2 = new TestString(str1->substr(2, 3));
 

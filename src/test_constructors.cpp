@@ -6,6 +6,7 @@
 TEST(Constructors, Allocate) {
 
     SharedString str1(125);
+    EXPECT_TRUE(str1.is_mutable());
 
     str1.push_back('a');
     str1.push_back('b');

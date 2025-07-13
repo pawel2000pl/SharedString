@@ -52,7 +52,6 @@ struct SharedStringData final {
         SharedStringData* object = (SharedStringData*) (new std::int8_t[alloc_size]);
         object->count = length;
         object->references_count = 0;
-        object->owner = NULL;
         object->data = (CharType*)(object+1);
         return object;
     }
@@ -62,7 +61,6 @@ struct SharedStringData final {
         SharedStringData* object = create((std::size_t)0);
         object->data = const_cast<CharType*>(data);
         object->count = length == npos ? strlen(data)+1 : length;
-        object->owner = object; // modifications not allowed
         return object;
     }
 
@@ -83,23 +81,18 @@ struct SharedStringData final {
     }
 
 
-    static void remove_reference(SharedStringData* object, void* owner) {
-        if (object->owner == owner) owner = NULL;
+    static void remove_reference(SharedStringData* object) {
         if (!(--(object->references_count))) dispose(object);
     }
 
 
-    bool set_owner(const void* new_owner) {
-        if (owner) return owner == new_owner;
-        if (!new_owner) return false;
-        owner = new_owner;
-        return true;
+    bool is_mutable() const {
+        return (void*)data == (void*)(this+1);
     }
 
 
     std::size_t count;
     std::size_t references_count;
-    const void* owner;
     CharType* data;
 
 };
@@ -221,7 +214,6 @@ class SharedString {
             this->data_struct= other.data_struct;
             this->count = other.count;
             this->data_ptr = other.data_ptr;
-            if (this->data_struct->owner == &other) this->data_struct->owner = this;
             other.data_struct = NULL;
             other.count = 0;
             other.data_ptr = NULL;
@@ -229,46 +221,39 @@ class SharedString {
 
 
         ~SharedString() {
-            if (data_struct) DataStruct::remove_reference(data_struct, this);
+            if (data_struct) DataStruct::remove_reference(data_struct);
         }
 
 
         bool is_mutable() const {
-            return data_struct->owner == this;
-        }
-
-
-        bool can_be_mutable() const {
-            return data_struct->owner == this || data_struct->owner == NULL;
-        }
-
-
-        void lock_data() const {
-            data_struct->set_owner(this);
+            return data_struct->references_count == 1 && data_struct->is_mutable();
         }
 
 
         void make_mutable() {
-            if (data_struct->set_owner(this)) return;
+            if (is_mutable()) return;
             detach(count);
         }
 
 
+        bool is_reserved(std::size_t expected) const {
+            return is_mutable() && (data_ptr + expected <= data_struct->data + data_struct->count);
+        }
+
+
         void reserve(std::size_t allocate_count=0) {
-            if (allocate_count <= data_struct->count && data_struct->set_owner(this)) 
-                return;
+            if (is_reserved(allocate_count)) return;
             detach(allocate_count);
         }
 
 
         void detach(std::size_t allocate_count=0) {
             DataStruct* new_data_struct = DataStruct::create(std::max<std::size_t>(count+1, allocate_count));
-            new_data_struct->owner = this;
             for (std::size_t i=0;i<count;i++)
                 new_data_struct->data[i] = data_ptr[i];
             new_data_struct->data[count] = 0;
             data_ptr = new_data_struct->data;
-            DataStruct::remove_reference(data_struct, this);
+            DataStruct::remove_reference(data_struct);
             data_struct = new_data_struct->add_reference();
         }
 
@@ -282,14 +267,14 @@ class SharedString {
 
 
         std::size_t capacity() const {
-            return data_struct->count;
+            return is_mutable() ? data_struct->count - (data_ptr - data_struct->data) : count;
         }
 
 
         void append(const CharType* str, std::size_t add_count=npos) {
             if (add_count == npos) add_count = strlen(str);
             std::size_t new_count = count + add_count;
-            if (!data_struct->set_owner(this) || new_count > data_struct->count)
+            if (!is_reserved(new_count))
                 reserve(new_count * 2);
             for (std::size_t i=count,j=0;j<add_count;i++,j++)
                 data_ptr[i] = str[j];
@@ -306,7 +291,7 @@ class SharedString {
 
         void push_back(const CharType chr) {
             std::size_t new_count = count + 1;
-            if (!data_struct->set_owner(this) || new_count > data_struct->count)
+            if (!is_reserved(new_count))
                 reserve(new_count * 2);
             data_ptr[count] = chr;
             count = new_count;
@@ -352,7 +337,6 @@ class SharedString {
 
 
         SharedString substr(std::size_t position, std::size_t char_count=npos) const {
-            lock_data();
             position = std::min(position, count);
             char_count = std::min(char_count, count - position);
             return SharedString(data_struct, data_ptr + position, char_count);
@@ -423,28 +407,57 @@ class SharedString {
 
         template<class T>
         static typename std::enable_if<is_like_string<T, CharType>::value && !std::is_same<T, SharedStringData<CharType>>::value, SharedString>::type
-        concat(const SharedStringData<CharType>& a, const T& b) {
-            SharedString result(a);
-            result.append(b.data(), b.size());
-            return result;
-        }
-
-
-        template<class T>
-        static typename std::enable_if<is_like_string<T, CharType>::value && !std::is_same<T, SharedStringData<CharType>>::value, SharedString>::type
-        concat(const T& a, const SharedStringData<CharType>& b) {
+        smart_concat(const SharedStringData<CharType>& a, const T& b) {
             std::size_t a_size = a.size();
             std::size_t b_size = b.size();
             std::size_t count = a_size + b_size;
+            if (a.is_reserved(count)) {
+                CharType *a_data = a.data();
+                CharType *b_data = b.data();
+                for (std::size_t i=0,j=a_size;i<b_size;i++,j++)
+                    a_data[j] = b_data[i];
+                return SharedString(a.data_struct, a_data, count);
+            } else
+                return dummy_concat(a, b);
+        }
+
+
+        template<class T, class U>
+        static typename std::enable_if<is_like_string<T, CharType>::value && is_like_string<U, CharType>::value, SharedString>::type
+        dummy_concat(const T& a, const U& b) {
+            std::size_t a_size = a.size();
+            std::size_t b_size = b.size();
+            std::size_t count = a_size + b_size;
+            CharType *a_data = a.data();
+            CharType *b_data = b.data();
             SharedString result(count);
             result.count = count;
             std::size_t i = 0;
             for (std::size_t j=0;j<a_size;j++)
-                result.data_ptr[i++] = a[j];
+                result.data_ptr[i++] = a_data[j];
             for (std::size_t j=0;j<b_size;j++)
-                result.data_ptr[i++] = b[j];
+                result.data_ptr[i++] = b_data[j];
             return result;
         }
+
+
+        SharedString concat(const SharedStringData<CharType>& a, const SharedStringData<CharType>& b) {
+            return smart_concat(a, b);
+        } 
+
+
+        template<class T>
+        static typename std::enable_if<is_like_string<T, CharType>::value && !std::is_same<T, SharedStringData<CharType>>::value, SharedString>::type
+        concat(const SharedStringData<CharType>& a, const T& b) {
+            return smart_concat(a, b);
+        } 
+
+        
+        template<class T>
+        static typename std::enable_if<is_like_string<T, CharType>::value && !std::is_same<T, SharedStringData<CharType>>::value, SharedString>::type
+        concat(const T& a, const SharedStringData<CharType>& b) {
+            return dummy_concat(a, b);
+        } 
 
 
         void clear() {
@@ -539,7 +552,6 @@ class SharedString {
             std::list<SharedString<CharType>> result;
             if (separator_length == npos) separator_length = strlen(separator);
             if (separator_length) {
-                lock_data();
                 std::size_t result_count = 0;
                 std::size_t pos = 0;
                 while (pos <= count) {
@@ -576,7 +588,6 @@ class SharedString {
                 data_ptr = other.data_ptr;
                 count = other.count;
                 data_struct = other.data_struct;
-                if (data_struct->owner == &other) data_struct->owner = this;
                 other->data_struct = NULL;
             }
             return *this;
