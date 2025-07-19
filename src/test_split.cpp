@@ -60,7 +60,7 @@ TEST(Split, Limit) {
 TEST(Split, AppendPart) {
 
     std::string base("0123$#456$#789");
-    TestString str1(base.begin(), base.end(), true);
+    TestString str1(base.begin(), base.end());
 
     std::list<TestString> splitted = str1.split("$#");
     auto it = std::begin(splitted);

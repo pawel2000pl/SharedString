@@ -33,6 +33,21 @@ TEST(Constructors, ConstChar) {
 }
 
 
+TEST(Constructors, ConstCharNonZero) {
+
+    const char* base = "test";
+    const char* test_str = "test string";
+
+    SharedString str1(test_str, 4);
+
+    EXPECT_EQ(str1.length(), 4);
+    EXPECT_EQ(str1.compare(base), 0);
+    EXPECT_EQ(strcmp(str1.c_str(), base), 0);
+    EXPECT_EQ(str1.references_count(), 1);
+
+}
+
+
 TEST(Constructors, InitializerList) {
 
     SharedString str1(std::initializer_list({'a', 'b', 'c'}));
