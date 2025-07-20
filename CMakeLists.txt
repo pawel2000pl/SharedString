@@ -77,6 +77,16 @@ target_link_libraries(
 )
 
 
+add_executable(
+  test_stream
+  src/test_stream.cpp
+)
+target_link_libraries(
+  test_stream
+  GTest::gtest_main
+)
+
+
 include(GoogleTest)
 gtest_discover_tests(test_constructors)
 gtest_discover_tests(test_static)
@@ -84,3 +94,4 @@ gtest_discover_tests(test_compare)
 gtest_discover_tests(test_find)
 gtest_discover_tests(test_substr)
 gtest_discover_tests(test_split)
+gtest_discover_tests(test_stream)

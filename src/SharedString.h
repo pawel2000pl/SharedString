@@ -226,6 +226,11 @@ class SharedString {
         }
 
 
+        bool reserved() const {
+            return is_mutable() ? (data_struct->data - data_ptr + data_struct->count) : count;
+        }
+
+
         void reserve(std::size_t allocate_count=0) {
             if (is_reserved(allocate_count)) return;
             detach(allocate_count);
@@ -243,10 +248,17 @@ class SharedString {
         }
 
 
-        void resize(std::size_t new_size, CharType filler = 0) {
+        void resize(std::size_t new_size, CharType filler) {
             reserve(new_size);
             for (std::size_t i=count;i<new_size;i++)
                 data_ptr[i] = filler;
+            count = new_size;
+        }
+
+
+        void resize(std::size_t new_size) {
+            reserve(new_size);
+            data_ptr[count] = 0;
             count = new_size;
         }
 
@@ -654,4 +666,52 @@ class SharedString {
         
 
 };
+
+
+namespace std {
+
+    template<class Stream, typename CharType>
+    Stream& getline(Stream& stream, SharedString<CharType>& str, CharType delimiter='\n') {
+        str.clear();
+        str.make_mutable();
+        while (1) {
+            std::size_t current_size = str.size();
+            std::size_t new_size = std::max<std::size_t>(str.reserved(), 16 | (current_size << 1));
+            std::size_t to_read = new_size - current_size;
+            str.resize(new_size);
+            stream.getline(str.data() + current_size, to_read, delimiter);
+            std::size_t readed = stream.gcount();
+            std::size_t true_size = current_size + readed;
+            if (new_size != true_size)
+                str.resize(true_size);
+            if (stream.fail()) {
+                stream.clear(); 
+                if (readed < to_read-1) 
+                    break; // eof
+                // fallback == buffer overflow
+            } else { // delimiter
+                str.resize(str.size() - 1);
+                break;
+            }
+        };
+        return stream;
+    }
+
+}
+
+
+template<class Stream, typename CharType>
+typename std::enable_if<std::is_base_of<typename std::remove_reference<decltype(std::declval<Stream>().write(std::declval<const CharType*>(), std::declval<typename std::make_signed<std::size_t>::type>()))>::type, Stream>::value, Stream>::type&
+operator<<(Stream& stream, const SharedString<CharType>& str) {
+    stream.write(str.data(), str.size());
+    return stream;
+}
+
+
+template<class Stream, typename CharType>
+typename std::enable_if<std::is_base_of<typename std::remove_reference<decltype(std::getline(std::declval<Stream&>(), std::declval<SharedString<CharType>&>(), std::declval<CharType>()))>::type, Stream>::value, Stream>::type&
+operator>>(Stream& stream, SharedString<CharType>& str) {
+    std::getline(stream, str, '\n');
+    return stream;
+}
 
